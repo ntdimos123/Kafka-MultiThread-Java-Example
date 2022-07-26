@@ -1,5 +1,6 @@
 package com.howtoprogram.kafka.singleconsumer;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -15,7 +16,8 @@ public class NotificationConsumer {
 
   private final KafkaConsumer<String, String> consumer;
   private final String topic;
-  // Threadpool of consumers
+
+  // Thread pool of consumers
   private ExecutorService executor;
 
   public NotificationConsumer(String brokers, String groupId, String topic) {
@@ -28,7 +30,7 @@ public class NotificationConsumer {
   /**
    * Creates a {@link ThreadPoolExecutor} with a given number of threads to consume the messages
    * from the broker.
-   * 
+   *
    * @param numberOfThreads The number of threads will be used to consume the message
    */
   public void execute(int numberOfThreads) {
@@ -36,10 +38,10 @@ public class NotificationConsumer {
     // Initialize a ThreadPool with size = 5 and use the BlockingQueue with size =1000 to
     // hold submitted tasks.
     executor = new ThreadPoolExecutor(numberOfThreads, numberOfThreads, 0L, TimeUnit.MILLISECONDS,
-        new ArrayBlockingQueue<Runnable>(1000), new ThreadPoolExecutor.CallerRunsPolicy());
+        new ArrayBlockingQueue<>(1000), new ThreadPoolExecutor.CallerRunsPolicy());
 
     while (true) {
-      ConsumerRecords<String, String> records = consumer.poll(100);
+      ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
       for (final ConsumerRecord record : records) {
         executor.submit(new ConsumerThreadHandler(record));
       }
@@ -48,14 +50,28 @@ public class NotificationConsumer {
 
   private static Properties createConsumerConfig(String brokers, String groupId) {
     Properties props = new Properties();
-    props.put("bootstrap.servers", brokers);
+
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     props.put("group.id", groupId);
-    props.put("enable.auto.commit", "true");
-    props.put("auto.commit.interval.ms", "1000");
-    props.put("session.timeout.ms", "30000");
-    props.put("auto.offset.reset", "earliest");
+    props.put("bootstrap.servers", brokers);
+    props.put("auto.offset.reset", "latest");
+    props.put("security.protocol", "SASL_SSL");
+    props.put("client.id", "consumer-ontology");
+    props.put("https.protocols", "TLSv1");
+
+    props.put("sasl.mechanism", "PLAIN");
+    props.put("sasl.username", "token");
+    props.put("sasl.password", "obX8kkCXlm46VlMu8aqebrnXkeLRPFvsjRjHckgXQ0Js");
+    props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=token password=obX8kkCXlm46VlMu8aqebrnXkeLRPFvsjRjHckgXQ0Js \n;");
+
+    props.put("api.version.request", true);
+    props.put("log.connection.close", false);
+    props.put("broker.version.fallback", "0.10.2.1");
+
     props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
     return props;
   }
 
