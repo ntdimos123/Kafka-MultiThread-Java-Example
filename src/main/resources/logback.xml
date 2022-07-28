@@ -6,13 +6,13 @@
     </encoder>
   </appender>
 
-<!--  <turboFilter class="ch.qos.logback.classic.turbo.MarkerFilter">-->
-<!--    <Name>CUSTOM_FILTER</Name>-->
-<!--    <Marker>CUSTOM</Marker>-->
-<!--    <OnMismatch>DENY</OnMismatch>-->
-<!--  </turboFilter>-->
+  <turboFilter class="ch.qos.logback.classic.turbo.MarkerFilter">
+    <Name>CUSTOM_FILTER</Name>
+    <Marker>CUSTOM</Marker>
+    <OnMismatch>DENY</OnMismatch>
+  </turboFilter>
 
-  <root level="ERROR">
+  <root level="INFO">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
