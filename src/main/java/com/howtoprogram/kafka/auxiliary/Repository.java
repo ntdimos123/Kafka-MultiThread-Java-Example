@@ -1,8 +1,6 @@
 package com.howtoprogram.kafka.auxiliary;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import org.eclipse.rdf4j.IsolationLevel;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
@@ -20,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Repository {
+
   public static String serverURL;
   public static String graphDB;
   public static org.eclipse.rdf4j.repository.Repository repository;
@@ -31,6 +30,33 @@ public class Repository {
   public static boolean flag;
 
   Logger logger = LoggerFactory.getLogger(Utilities.class);
+
+  public static void commitModel(Model model) {
+    Repository.connection.begin();
+    Repository.connection.add(model);
+    Repository.connection.commit();
+  }
+
+  public static void executeUpdate(RepositoryConnection repositoryConnection, String update,
+      Binding... bindings)
+      throws MalformedQueryException, RepositoryException, UpdateExecutionException {
+    Update preparedUpdate = repositoryConnection.prepareUpdate(QueryLanguage.SPARQL, update);
+
+    /* Setting any potential bindings (query parameters) */
+    for (Binding b : bindings) {
+      preparedUpdate.setBinding(b.getName(), b.getValue());
+    }
+    preparedUpdate.execute();
+  }
+
+  public synchronized static void executeQuery(String queryString) {
+    // When adding data we need to start a transaction
+    Repository.connection.begin();
+
+    executeUpdate(connection, String.format(queryString));
+
+    Repository.connection.commit();
+  }
 
   public void initKB() {
     logger.info("(INIT) Loading parameters and opening connection with the repository.");
@@ -55,15 +81,6 @@ public class Repository {
       Repository.serverURL = url;
       Repository.graphDB = label;
     }
-
-//    /* Load properties file */
-//    Properties properties = new Properties();
-//    InputStream is = Utilities.class.getResourceAsStream("/application.properties");
-//    try {
-//      properties.load(is);
-//    } catch (IOException e) {
-//      logger.warn("Reading property file failed!");
-//    }
   }
 
   public boolean startKB(String repositoryId, String serverURL) {
@@ -94,12 +111,6 @@ public class Repository {
     return true;
   }
 
-  public static void commitModel(Model model) {
-    Repository.connection.begin();
-    Repository.connection.add(model);
-    Repository.connection.commit();
-  }
-
   public void commitModel(Model model, Resource resource) {
     /* When adding data we need to start a transaction */
     logger.info("(REPO) Starting Transaction.");
@@ -109,27 +120,6 @@ public class Repository {
     Repository.connection.add(model, resource);
 
     logger.info("(REPO) Committing Transaction.");
-    Repository.connection.commit();
-  }
-
-  public static void executeUpdate(RepositoryConnection repositoryConnection, String update,
-      Binding... bindings)
-      throws MalformedQueryException, RepositoryException, UpdateExecutionException {
-    Update preparedUpdate = repositoryConnection.prepareUpdate(QueryLanguage.SPARQL, update);
-
-    /* Setting any potential bindings (query parameters) */
-    for (Binding b : bindings) {
-      preparedUpdate.setBinding(b.getName(), b.getValue());
-    }
-    preparedUpdate.execute();
-  }
-
-  public static void executeQuery(String queryString) {
-    // When adding data we need to start a transaction
-    Repository.connection.begin();
-
-    executeUpdate(connection, String.format(queryString));
-
     Repository.connection.commit();
   }
 

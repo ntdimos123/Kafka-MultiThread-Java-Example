@@ -246,7 +246,7 @@ public class Utilities {
           tempBody.put("nextClassificationTimestamp", conc.get("nextClassificationTimestamp"));
           tempBody.put("isHotspot", conc.get("isHotspot"));
 
-          // sendMessage(header, tempBody);
+          sendMessage(header, tempBody, uuid, sender);
         }
       }
     }
@@ -261,10 +261,10 @@ public class Utilities {
 
     tempBody.put("eventID", body.get("eventID"));
     tempBody.put("TimeUTC", body.get("TimeUTC"));
-    tempBody.put("Title", body.get("title"));
-    tempBody.put("Description", body.get("description"));
-    tempBody.put("Latitude", body.get("latitude"));
-    tempBody.put("Longitude", body.get("longitude"));
+    tempBody.put("Title", body.get("Title"));
+    tempBody.put("Description", body.get("Description"));
+    tempBody.put("Latitude", body.get("Latitude"));
+    tempBody.put("Longitude", body.get("Longitude"));
     tempBody.put("dataKey", sender.toUpperCase());
 
     /* Iterate parameters array */
@@ -700,9 +700,6 @@ public class Utilities {
     queryString += "              isola:lat " + x_lat + " ; \n";
     queryString += "              isola:long " + y_long + " ; \n";
     queryString += "			        sosa:resultTime " + unixTime + " . \n";
-//    if (distance >= 0.0 && distance <= 300.00) {
-//      queryString += "          isola:Vessel isola:matchesVessel " + id + " . \n";
-//    }
     queryString += "    } \n";
     queryString += "} WHERE { \n";
     queryString += "	 BIND(CONCAT(\"POINT(\", STR(" + x_lat + "), \" \", STR(" + y_long
