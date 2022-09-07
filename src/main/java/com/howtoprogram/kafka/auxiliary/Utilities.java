@@ -328,8 +328,11 @@ public class Utilities {
       updateLevels.add(hm.get(key));
     }
 
-    // update body
-    body.put("criticalLevel", updateLevels);
+    // remove old levels
+    data.remove("criticalLevel");
+
+    // update data
+    data.put("criticalLevel", updateLevels);
 
     // send message to kafka
     sendMessage(header, body, uuid, sender);
