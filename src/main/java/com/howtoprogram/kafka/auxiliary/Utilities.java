@@ -5,9 +5,10 @@ import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
@@ -110,7 +111,7 @@ public class Utilities {
 
     if (body.containsKey("reference") && body.containsKey("data")) {
       if (sender.contentEquals("certh_multi")) {
-        updateSimilarImages(updatedHeader, body, sender, uuid);
+        updatedBody = updateSimilarImages(updatedHeader, body, sender, uuid);
       }
     }
 
@@ -238,14 +239,15 @@ public class Utilities {
    * @param sender
    * @param uuid
    */
-  public void updateSimilarImages(JSONObject header, JSONObject body, String sender, String uuid) {
+  public JSONObject updateSimilarImages(JSONObject header, JSONObject body, String sender,
+      String uuid) {
     // get reference pointing to detected image URL
     String reference = body.get("reference").toString();
 
     // extract image name
     String imageName;
     if (reference.contains("/")) {
-       imageName = reference.substring(reference.lastIndexOf('/') + 1);
+      imageName = reference.substring(reference.lastIndexOf('/') + 1);
     } else {
       imageName = reference.substring(reference.lastIndexOf('\\') + 1);
     }
@@ -258,7 +260,7 @@ public class Utilities {
     // JSONArray criticalLevel = (JSONArray) data.get("criticalLevel");
 
     // create a hashmap to store the pairs url,level
-    Map<String, Integer> hm = new HashMap<String, Integer>();
+    Map<String, Integer> hm = new LinkedHashMap<>();
 
     // start GraphDB related activities
     IRI imageGraph = Repository.connection
@@ -301,7 +303,13 @@ public class Utilities {
           .add(RDF.TYPE, ISOLA.IMAGE)
           .add(ISOLA.HASURL, sim);
 
-      hm.put(sim, 0);
+      int level = checkCriticalLevel(sim);
+
+      if (level == -1) {
+        hm.put(sim, 0);
+      } else {
+        hm.put(sim, level);
+      }
     }
 
     /* We're done building, create our Model */
@@ -310,6 +318,53 @@ public class Utilities {
     /* Commit model to repository */
     Repository.commitModel(model);
 
+    // create new array to keep updated critical levels
+    JSONArray updateLevels = new JSONArray();
+
+    Set<String> keys = hm.keySet();
+
+    // printing the elements of LinkedHashMap
+    for (String key : keys) {
+      updateLevels.add(hm.get(key));
+    }
+
+    // update body
+    body.put("criticalLevel", updateLevels);
+
+    // send message to kafka
+    sendMessage(header, body, uuid, sender);
+
+    return body;
+  }
+
+  public Integer checkCriticalLevel(String URL) {
+    String escapedURL;
+
+    escapedURL = URL.replace("\\", "\\\\");
+
+    String queryString;
+
+    queryString = "PREFIX isola: <https://www.semanticweb.org/mklab/isola#> \n";
+    queryString += "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n";
+    queryString += "select ?url ?level where { \n";
+    queryString += "    GRAPH isola:Images { \n";
+    queryString += "		?s rdf:type isola:Image . \n";
+    queryString += "        ?s isola:hasURL ?url . \n";
+    queryString += "        ?s isola:criticalLevel ?level . \n";
+    queryString += "    } \n";
+    queryString += "    FILTER (?url = \"" + escapedURL + "\") \n";
+    queryString += "} \n";
+
+    TupleQuery query = Repository.connection.prepareTupleQuery(queryString);
+    Integer level = -1;
+    try (TupleQueryResult result = query.evaluate()) {
+      if (result.hasNext()) {
+        BindingSet solution = result.next();
+        level = Integer.parseInt(solution.getBinding("level").getValue().stringValue());
+      }
+    }
+
+    return level;
   }
 
   public JSONObject updateZones(JSONObject header, JSONObject body, String sender, String uuid) {

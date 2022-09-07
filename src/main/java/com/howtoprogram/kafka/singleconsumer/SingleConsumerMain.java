@@ -1,6 +1,9 @@
 package com.howtoprogram.kafka.singleconsumer;
 
 import com.howtoprogram.kafka.auxiliary.Repository;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public final class SingleConsumerMain {
 
@@ -20,19 +23,20 @@ public final class SingleConsumerMain {
             "broker-1-1j3wyzzq1xm7fy24.kafka.svc04.eu-de.eventstreams.cloud.ibm.com:9093";
 
     String groupId = "group-ontology";
-    String topic = "TOPIC_02";
+    List<String> topicList = Arrays.asList("TOPIC_02", "TOPIC_15");
+//    String topic = "TOPIC_02";
 
     int numberOfThread = 7;
 
-    if (args != null && args.length > 4) {
-      brokers = args[0];
-      groupId = args[1];
-      topic = args[2];
-      numberOfThread = Integer.parseInt(args[3]);
-    }
+//    if (args != null && args.length > 4) {
+//      brokers = args[0];
+//      groupId = args[1];
+//      topicList = Collections.singletonList(args[2]);
+//      numberOfThread = Integer.parseInt(args[3]);
+//    }
 
     // Start group of Notification Consumer Thread
-    NotificationConsumer consumers = new NotificationConsumer(brokers, groupId, topic);
+    NotificationConsumer consumers = new NotificationConsumer(brokers, groupId, topicList);
 
     consumers.execute(numberOfThread);
 

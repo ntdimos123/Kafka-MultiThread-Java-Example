@@ -2,6 +2,7 @@ package com.howtoprogram.kafka.singleconsumer;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -15,16 +16,16 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 public class NotificationConsumer {
 
   private final KafkaConsumer<String, String> consumer;
-  private final String topic;
+  private final List<String> topic;
 
   // Thread pool of consumers
   private ExecutorService executor;
 
-  public NotificationConsumer(String brokers, String groupId, String topic) {
+  public NotificationConsumer(String brokers, String groupId, List<String> topicList) {
     Properties prop = createConsumerConfig(brokers, groupId);
     this.consumer = new KafkaConsumer<>(prop);
-    this.topic = topic;
-    this.consumer.subscribe(Arrays.asList(this.topic));
+    this.topic = topicList;
+    this.consumer.subscribe(topicList);
   }
 
   /**
