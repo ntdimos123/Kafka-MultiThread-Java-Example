@@ -31,7 +31,7 @@ public class Repository {
 
   Logger logger = LoggerFactory.getLogger(Utilities.class);
 
-  public static void commitModel(Model model) {
+  public synchronized static void commitModel(Model model) {
     Repository.connection.begin();
     Repository.connection.add(model);
     Repository.connection.commit();

@@ -5,10 +5,14 @@ import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.util.ModelBuilder;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
@@ -104,6 +108,12 @@ public class Utilities {
 
     JSONObject updatedHeader = updateHeader(header, body, uuid);
 
+    if (body.containsKey("reference") && body.containsKey("data")) {
+      if (sender.contentEquals("certh_multi")) {
+        updateSimilarImages(updatedHeader, body, sender, uuid);
+      }
+    }
+
     if (body.containsKey("sequence")) {
       if (!sender.contentEquals("certh_multi")) {
         updatedBody = updateSequence(updatedHeader, body, sender, uuid);
@@ -165,8 +175,14 @@ public class Utilities {
   }
 
   public JSONObject updateHeader(JSONObject header, JSONObject body, String uuid) {
+    String topic = header.get("topicName").toString().toLowerCase();
+
     header.remove("topicName");
-    header.put("topicName", "TOPIC_04");
+    if ("topic_15".equals(topic)) {
+      header.put("topicName", "TOPIC_15");
+    } else {
+      header.put("topicName", "TOPIC_04");
+    }
 
     header.remove("msgIdentifier");
     header.put("msgIdentifier", uuid);
@@ -178,6 +194,7 @@ public class Utilities {
     String sender = header.get("sender").toString().toLowerCase();
     header.remove("recipients");
 
+    // SENDER PRISMA
     if (sender.contains("prisma_gps")) {
       /* Incrementing shared variable by 1 */
       sharedVar_GPS += 1;
@@ -188,12 +205,17 @@ public class Utilities {
         sharedVar_HEADING += 1;
       }
       header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
+      // SENDER CERTH MMI
     } else if (sender.contains("certh_multi")) {
-      String source = body.get("source").toString().toLowerCase();
-      if (source.contains("uuv")) {
-        header.put("recipients", "SIMAVI_UI,ADS_REPORT");
+      if ("topic_15".equals(topic)) {
+        header.put("recipients", "CENTRIC_DECISION");
       } else {
-        header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
+        String source = body.get("source").toString().toLowerCase();
+        if (source.contains("uuv")) {
+          header.put("recipients", "SIMAVI_UI,ADS_REPORT");
+        } else {
+          header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
+        }
       }
     } else if (sender.contains("pct")
         || sender.contains("kiosk")
@@ -205,6 +227,89 @@ public class Utilities {
     header.put("sender", "CERTH_ONTOL");
 
     return header;
+  }
+
+  /**
+   * This function parses the message that contains the list of similar images and updates their
+   * critical level.
+   *
+   * @param header
+   * @param body
+   * @param sender
+   * @param uuid
+   */
+  public void updateSimilarImages(JSONObject header, JSONObject body, String sender, String uuid) {
+    // get reference pointing to detected image URL
+    String reference = body.get("reference").toString();
+
+    // extract image name
+    String imageName;
+    if (reference.contains("/")) {
+       imageName = reference.substring(reference.lastIndexOf('/') + 1);
+    } else {
+      imageName = reference.substring(reference.lastIndexOf('\\') + 1);
+    }
+
+    // get data array
+    JSONObject data = (JSONObject) body.get("data");
+
+    // get the URLs of all similar images and the default critical level (0)
+    JSONArray attachmentURL = (JSONArray) data.get("attachmentURL");
+    // JSONArray criticalLevel = (JSONArray) data.get("criticalLevel");
+
+    // create a hashmap to store the pairs url,level
+    Map<String, Integer> hm = new HashMap<String, Integer>();
+
+    // start GraphDB related activities
+    IRI imageGraph = Repository.connection
+        .getValueFactory()
+        .createIRI(ISOLA.NAMESPACE, "Images");
+
+    // initialize RDF builder
+    ModelBuilder builder = new ModelBuilder()
+        .setNamespace("isola", ISOLA.NAMESPACE);
+
+    // create IRI for reference image
+    IRI imageObject = Repository.connection
+        .getValueFactory()
+        .createIRI(ISOLA.NAMESPACE, imageName);
+
+    // initialize the hashmap
+    Iterator<String> it = attachmentURL.iterator();
+    while (it.hasNext()) {
+      String sim = it.next();
+      // extract image nameString
+      if (sim.contains("/")) {
+        imageName = sim.substring(sim.lastIndexOf('/') + 1);
+      } else {
+        imageName = sim.substring(sim.lastIndexOf('\\') + 1);
+      }
+
+      // create IRI for reference image
+      IRI simImageObject = Repository.connection
+          .getValueFactory()
+          .createIRI(ISOLA.NAMESPACE, imageName);
+
+      // link similar images to reference image
+      builder
+          .namedGraph(imageGraph)
+          .subject(imageObject)
+          .add(RDF.TYPE, ISOLA.IMAGE)
+          .add(ISOLA.HASURL, reference)
+          .add(ISOLA.HASSIMILARIMAGE, simImageObject)
+          .subject(simImageObject)
+          .add(RDF.TYPE, ISOLA.IMAGE)
+          .add(ISOLA.HASURL, sim);
+
+      hm.put(sim, 0);
+    }
+
+    /* We're done building, create our Model */
+    Model model = builder.build();
+
+    /* Commit model to repository */
+    Repository.commitModel(model);
+
   }
 
   public JSONObject updateZones(JSONObject header, JSONObject body, String sender, String uuid) {

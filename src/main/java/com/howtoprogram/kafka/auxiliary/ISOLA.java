@@ -14,6 +14,13 @@ public class ISOLA {
 
   public static final IRI MATCHES = getIRI("matchesVessel");
 
+  public static final IRI IMAGE = getIRI("Image");
+
+  public static final IRI HASURL = getIRI("hasURL");
+
+  public static final IRI HASSIMILARIMAGE = getIRI("hasSimilarImage");
+
+
   /**
    * Creates a new {@link IRI} with this vocabulary's namespace for the given local name.
    *
