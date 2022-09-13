@@ -115,6 +115,13 @@ public class Utilities {
       }
     }
 
+    if (body.containsKey("targetURL") && body.containsKey("attachmentURL")
+        && body.containsKey("criticalLevel")) {
+      if (sender.contentEquals("certh_multi")) {
+        updatedBody = updateSimilarImages(updatedHeader, body, sender, uuid);
+      }
+    }
+
     if (body.containsKey("sequence")) {
       if (!sender.contentEquals("certh_multi")) {
         updatedBody = updateSequence(updatedHeader, body, sender, uuid);
@@ -242,7 +249,12 @@ public class Utilities {
   public JSONObject updateSimilarImages(JSONObject header, JSONObject body, String sender,
       String uuid) {
     // get reference pointing to detected image URL
-    String reference = body.get("reference").toString();
+    String reference;
+    if (body.containsKey("reference")) {
+      reference = body.get("reference").toString();
+    } else {
+      reference = body.get("targetURL").toString();
+    }
 
     // extract image name
     String imageName;
@@ -253,7 +265,13 @@ public class Utilities {
     }
 
     // get data array
-    JSONObject data = (JSONObject) body.get("data");
+    JSONObject data;
+
+    if (body.containsKey("data")) {
+      data = (JSONObject) body.get("data");
+    } else {
+      data = body;
+    }
 
     // get the URLs of all similar images and the default critical level (0)
     JSONArray attachmentURL = (JSONArray) data.get("attachmentURL");
