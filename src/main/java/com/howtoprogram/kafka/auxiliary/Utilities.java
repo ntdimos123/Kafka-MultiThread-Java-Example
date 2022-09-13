@@ -122,6 +122,10 @@ public class Utilities {
       }
     }
 
+    if (sender.contentEquals("simavi_ui")) {
+        updatedBody = updateCriticality(updatedHeader, body, sender, uuid);
+    }
+
     if (body.containsKey("sequence")) {
       if (!sender.contentEquals("certh_multi")) {
         updatedBody = updateSequence(updatedHeader, body, sender, uuid);
@@ -213,6 +217,7 @@ public class Utilities {
         sharedVar_HEADING += 1;
       }
       header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
+
       // SENDER CERTH MMI
     } else if (sender.contains("certh_multi")) {
       if ("topic_15".equals(topic)) {
@@ -225,16 +230,68 @@ public class Utilities {
           header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
         }
       }
+
+      // SENDER PCT
     } else if (sender.contains("pct")
         || sender.contains("kiosk")
         || sender.contains("t4i")) {
       header.put("recipients", "NTUA_CRISIS,CENTRIC_DECISION,ADS_REPORT");
+
+    // SENDER SIMAVI
+    } else if (sender.contains("simavi_ui")) {
+      header.put("recipients", "CENTRIC_DECISION");
     }
 
     header.remove("sender");
     header.put("sender", "CERTH_ONTOL");
 
     return header;
+  }
+
+  public JSONObject updateCriticality(JSONObject header, JSONObject body, String sender,
+      String uuid) {
+
+    // check criticality
+    boolean critical = (Boolean) body.get("critical");
+
+    // assign value to level
+    int level = critical ? 1 : 0;
+
+    JSONArray attachmentURLs = (JSONArray) body.get("attachmentURLs");
+
+    Iterator<String> it = attachmentURLs.iterator();
+    String URL;
+    String escapedURL;
+    while (it.hasNext()) {
+      URL = it.next();
+
+      escapedURL = URL.replace("\\", "\\\\");
+
+      String queryString;
+
+      queryString = "PREFIX isola: <https://www.semanticweb.org/mklab/isola#> \n";
+      queryString += "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> \n";
+      queryString += "DELETE { \n";
+      queryString += "    ?s isola:criticalLevel ?level . \n";
+      queryString += "} \n";
+      queryString += "INSERT { \n";
+      queryString += "    GRAPH isola:Images { \n";
+      queryString += "        ?s isola:criticalLevel " + level + " . \n";
+      queryString += "    } \n";
+      queryString += "} WHERE { \n";
+      queryString += "    ?s rdf:type isola:Image .  \n";
+      queryString += "    ?s isola:hasURL ?url . \n";
+      queryString += "    OPTIONAL { \n";
+      queryString += "        ?s isola:criticalLevel ?level . \n";
+      queryString += "    } \n";
+      queryString += " \n";
+      queryString += "    FILTER (?url = \"" + escapedURL + "\") \n";
+      queryString += "} \n";
+
+      Repository.executeQuery(queryString);
+    }
+
+    return body;
   }
 
   /**
